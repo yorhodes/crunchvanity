@@ -4,46 +4,35 @@ use ethers::prelude::*;
 use rayon::prelude::*;
 use sha2::Digest;
 
-// Generates the binding `IsValidSignatureCall`
-// Need to run `forge build` before `cargo build`.
-abigen!(IERC1271, "./out/IERC1271.sol/IERC1271.json");
+abigen!(IKey, "../curta/out/Puzzle17.sol/IKey.json");
 
-fn to_signature(i: u64) -> Bytes {
-    let signature: Vec<u8> = format!("{}", i).as_bytes().into();
-    Bytes::from(signature)
+fn to_bytes(i: u64) -> [u8; 32] {
+    let mut res = [0u8; 32];
+    res[0..8].copy_from_slice(&i.to_le_bytes());
+    res
 }
 
-fn abi_encode(hash: [u8; 32], signature: Bytes) -> Vec<u8> {
-    IsValidSignatureCall { hash, signature }.encode()
+fn abi_encode(owner: Address, password: [u8; 32]) -> Vec<u8> {
+    SolveThePuzzleOfCoastWithImpressionInNightAndSquallOnCayAndEndToVictoryCall { owner, password }.encode()
 }
 
 fn main() {
-    // >>> cast keccak "CHALLENGE_MAGIC"
-    // 0x19bb34e293bba96bf0caeea54cdd3d2dad7fdf44cbea855173fa84534fcfb528
-    let hash: [u8; 32] =
-        hex::decode("19bb34e293bba96bf0caeea54cdd3d2dad7fdf44cbea855173fa84534fcfb528")
-            .unwrap()
-            .try_into()
-            .unwrap();
+    let owner = "7714F5E0C26F10584180515FC704C06d4c17d4F0".parse().unwrap();
+    let sig = hex::decode("00000000").unwrap();
 
-    // >>> cast sig "isValidSignature(bytes32,bytes)"
-    // 0x1626ba7e
-    let sig = hex::decode("1626ba7e").unwrap();
-    let res = (0..u64::MAX).into_par_iter().find_any(|i| {
-        let signature = to_signature(*i);
-        let digest = sha2::Sha256::digest(&abi_encode(hash, signature));
-        digest.starts_with(&sig[..])
-    });
+    // let res = (0..u64::MAX).into_par_iter().find_any(|i| {        
+    //     let data = abi_encode(owner, to_bytes(*i));
+    //     let digest = sha2::Sha256::digest(&data);
+    //     digest.starts_with(&sig)
+    // });
 
-    if let Some(i) = res {
-        println!("i: {}", i);
-        let signature = to_signature(i);
-        let abi_encoding = abi_encode(hash, signature.clone());
-        let digest = hex::encode(sha2::Sha256::digest(&abi_encoding));
-        println!("signature: {}", signature);
-        println!("ABI encoding: {:?}", hex::encode(abi_encoding));
-        println!("sha256: {}", digest);
-    } else {
-        println!("Crunching failed. Bigger range?");
-    }
+    let i: u64 = 12105675798531350165;
+
+    // if let Some(i) = res {
+        let password = to_bytes(i);
+        let data = abi_encode(owner, password);
+        println!("i: {}, data: {:?}, bytes_i: {}", i, data, hex::encode(password));
+    // } else {
+    //     println!("Crunching failed. Bigger range?");
+    // }
 }
